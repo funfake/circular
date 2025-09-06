@@ -2,11 +2,13 @@
 
 import { Authenticated, Unauthenticated } from "convex/react";
 import { Container } from "@/components/Container";
+import PendingInvites from "@/components/PendingInvites";
+import UserProjects from "@/components/UserProjects";
+import CreateProjectDialog from "@/components/CreateProjectDialog";
 
 export default function Home() {
   return (
     <Container className="py-8">
-      <h1 className="text-2xl font-semibold">Convex + AuthKit</h1>
       <Authenticated>
         <Content />
       </Authenticated>
@@ -18,13 +20,11 @@ export default function Home() {
 }
 
 function Content() {
-  const data = "hello world";
-
-  if (!data) return <p>Loading...</p>;
-
   return (
-    <div className="mt-4">
-      <p>{data}</p>
+    <div className="mt-6 grid grid-cols-1 gap-6 max-w-md mx-auto">
+      <CreateProjectDialog />
+      <PendingInvites />
+      <UserProjects />
     </div>
   );
 }
