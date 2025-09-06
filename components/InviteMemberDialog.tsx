@@ -38,7 +38,7 @@ export default function InviteMemberDialog({
       </HCard>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Invite by email</DialogTitle>
+          <DialogTitle>Invite using email</DialogTitle>
         </DialogHeader>
         <InviteMemberForm
           projectId={projectId}

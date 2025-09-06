@@ -140,7 +140,7 @@ export const createProject = mutation({
     await ctx.db.insert("credentials", {
       projectId,
       repositoryId: "",
-      jiraToken: "",
+      jiraSourceUrl: "",
       githubToken: "",
     });
 

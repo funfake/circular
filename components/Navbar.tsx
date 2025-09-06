@@ -48,7 +48,13 @@ function Navbar() {
   const projectMatch = pathname?.match(/^\/project\/([^/]+)/);
   const projectId = projectMatch?.[1];
   const mainLinks = projectId
-    ? [{ href: `/project/${projectId}`, label: "Project Home", exact: true }]
+    ? [
+        {
+          href: `/project/${projectId}`,
+          label: "Project Dashboard",
+          exact: true,
+        },
+      ]
     : [{ href: "/", label: "Home", exact: true }];
   const unauthLinks = [
     {

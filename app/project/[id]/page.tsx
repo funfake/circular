@@ -4,7 +4,9 @@ import { useParams, notFound } from "next/navigation";
 import { Authenticated } from "convex/react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { Container } from "@/components/Container";
+import { TicketsList } from "@/components/TicketsList";
 
 export default function ProjectPage() {
   return (
@@ -16,7 +18,8 @@ export default function ProjectPage() {
 
 function Content() {
   const params = useParams<{ id: string }>();
-  const projectId = params?.id as string | undefined;
+  const projectIdStr = params?.id as string | undefined;
+  const projectId = projectIdStr as Id<"projects"> | undefined;
   const project = useQuery(
     api.project.getProjectIfMember,
     projectId ? { projectId } : "skip"
@@ -29,6 +32,9 @@ function Content() {
   return (
     <Container className="py-8">
       <h1 className="text-2xl font-semibold">{project.name}</h1>
+      <div className="mt-6">
+        <TicketsList projectId={projectId} />
+      </div>
     </Container>
   );
 }

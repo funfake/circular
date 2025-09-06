@@ -14,7 +14,9 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as credentials from "../credentials.js";
+import type * as crons from "../crons.js";
 import type * as project from "../project.js";
+import type * as tickets from "../tickets.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -26,7 +28,9 @@ import type * as project from "../project.js";
  */
 declare const fullApi: ApiFromModules<{
   credentials: typeof credentials;
+  crons: typeof crons;
   project: typeof project;
+  tickets: typeof tickets;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

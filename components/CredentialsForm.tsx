@@ -22,9 +22,9 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useEffect } from "react";
 
 const schema = z.object({
-  repositoryId: z.string().min(1, "Repository ID is required"),
-  jiraToken: z.string().min(1, "Jira token is required"),
-  githubToken: z.string().min(1, "GitHub token is required"),
+  repositoryId: z.string().optional(),
+  jiraSourceUrl: z.string().optional(),
+  githubToken: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -45,7 +45,7 @@ export default function CredentialsForm({
     resolver: zodResolver(schema),
     defaultValues: {
       repositoryId: "",
-      jiraToken: "",
+      jiraSourceUrl: "",
       githubToken: "",
     },
   });
@@ -55,7 +55,7 @@ export default function CredentialsForm({
     if (credentials) {
       form.reset({
         repositoryId: credentials.repositoryId,
-        jiraToken: credentials.jiraToken,
+        jiraSourceUrl: credentials.jiraSourceUrl,
         githubToken: credentials.githubToken,
       });
     }
@@ -63,10 +63,13 @@ export default function CredentialsForm({
 
   const onSubmit = async (values: FormValues) => {
     try {
-      await updateCredentials({
-        projectId,
-        ...values,
-      });
+      // Only send fields that are non-empty strings
+      const partial: Partial<FormValues> = {};
+      if (values.repositoryId) partial.repositoryId = values.repositoryId;
+      if (values.jiraSourceUrl) partial.jiraSourceUrl = values.jiraSourceUrl;
+      if (values.githubToken) partial.githubToken = values.githubToken;
+
+      await updateCredentials({ projectId, ...partial });
       toast.success("Credentials updated successfully");
     } catch (err: unknown) {
       const message =
@@ -98,35 +101,12 @@ export default function CredentialsForm({
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="repositoryId"
+              name="jiraSourceUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Repository ID</FormLabel>
+                  <FormLabel>Jira Source URL</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="e.g., owner/repository-name"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    GitHub repository identifier (owner/repo-name)
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="jiraToken"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Jira Token</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="password"
-                      placeholder="Your Jira API token"
-                      {...field}
-                    />
+                    <Input placeholder="Your Jira source URL" {...field} />
                   </FormControl>
                   <FormDescription>
                     API token for accessing Jira tickets
@@ -150,6 +130,25 @@ export default function CredentialsForm({
                   </FormControl>
                   <FormDescription>
                     Personal access token for GitHub repository access
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="repositoryId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Repository ID</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="e.g., owner/repository-name"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    GitHub repository identifier (owner/repo-name)
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

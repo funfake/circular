@@ -9,6 +9,13 @@ export default defineSchema({
     ownerEmail: v.optional(v.string()),
   }),
 
+  credentials: defineTable({
+    projectId: v.id("projects"),
+    jiraSourceUrl: v.optional(v.string()),
+    githubToken: v.optional(v.string()),
+    repositoryId: v.optional(v.string()),
+  }).index("by_project", ["projectId"]),
+
   invitations: defineTable({
     projectId: v.id("projects"),
     email: v.string(),
@@ -37,8 +44,10 @@ export default defineSchema({
     jiraTitle: v.string(),
     jiraDescription: v.string(),
     jiraId: v.string(),
-    rejected: v.boolean(),
-  }),
+    rejected: v.optional(v.boolean()), // undefined = not yet analyzed
+  })
+    .index("by_project", ["projectId"]) // scope queries by project first
+    .index("by_project_jiraId", ["projectId", "jiraId"]), // enable lookups and ordering by jiraId within project
 
   jobs: defineTable({
     ticketId: v.id("tickets"),
@@ -51,11 +60,4 @@ export default defineSchema({
     prId: v.string(), // github pull request id
     finishedAt: v.number(), // timestamp when the job is finished (created ts is set by convex automatically)
   }),
-
-  credentials: defineTable({
-    projectId: v.id("projects"),
-    repositoryId: v.string(),
-    jiraToken: v.string(),
-    githubToken: v.string(),
-  }).index("by_project", ["projectId"]),
 });

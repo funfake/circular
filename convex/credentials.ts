@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
 
 export const getProjectCredentials = query({
   args: { projectId: v.id("projects") },
@@ -30,7 +29,7 @@ export const getProjectCredentials = query({
         _id: null,
         projectId,
         repositoryId: "",
-        jiraToken: "",
+        jiraSourceUrl: "",
         githubToken: "",
       };
     }
@@ -38,9 +37,9 @@ export const getProjectCredentials = query({
     return {
       _id: credentials._id,
       projectId: credentials.projectId,
-      repositoryId: credentials.repositoryId,
-      jiraToken: credentials.jiraToken,
-      githubToken: credentials.githubToken,
+      repositoryId: credentials.repositoryId ?? "",
+      jiraSourceUrl: credentials.jiraSourceUrl ?? "",
+      githubToken: credentials.githubToken ?? "",
     };
   },
 });
@@ -48,11 +47,14 @@ export const getProjectCredentials = query({
 export const updateProjectCredentials = mutation({
   args: {
     projectId: v.id("projects"),
-    repositoryId: v.string(),
-    jiraToken: v.string(),
-    githubToken: v.string(),
+    repositoryId: v.optional(v.string()),
+    jiraSourceUrl: v.optional(v.string()),
+    githubToken: v.optional(v.string()),
   },
-  handler: async (ctx, { projectId, repositoryId, jiraToken, githubToken }) => {
+  handler: async (
+    ctx,
+    { projectId, repositoryId, jiraSourceUrl, githubToken }
+  ) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthenticated");
     const userId = identity.subject;
@@ -72,21 +74,22 @@ export const updateProjectCredentials = mutation({
       .withIndex("by_project", (q) => q.eq("projectId", projectId))
       .unique();
 
+    // Build a partial update with only provided fields
+    const fieldsToUpdate: Record<string, string> = {};
+    if (repositoryId !== undefined) fieldsToUpdate.repositoryId = repositoryId;
+    if (jiraSourceUrl !== undefined)
+      fieldsToUpdate.jiraSourceUrl = jiraSourceUrl;
+    if (githubToken !== undefined) fieldsToUpdate.githubToken = githubToken;
+
     if (!existingCredentials) {
       // Create new credentials if they don't exist
       await ctx.db.insert("credentials", {
         projectId,
-        repositoryId,
-        jiraToken,
-        githubToken,
+        ...fieldsToUpdate,
       });
-    } else {
-      // Update existing credentials
-      await ctx.db.patch(existingCredentials._id, {
-        repositoryId,
-        jiraToken,
-        githubToken,
-      });
+    } else if (Object.keys(fieldsToUpdate).length > 0) {
+      // Update existing credentials with only provided fields
+      await ctx.db.patch(existingCredentials._id, fieldsToUpdate);
     }
 
     return { ok: true as const };
