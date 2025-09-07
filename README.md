@@ -81,29 +81,3 @@ William · Kevin · Juan Carlos · Yingbo
 This project was created during [BLACKBOX.AI x 42AI Agents Hackathon] 2025. 
 
 ---
-
-## ⚙️ Getting Started
-
-### Prerequisites
-- [Node.js](https://nodejs.org/) (v18 or higher recommended)  
-- npm or yarn package manager  
-
-### Run Locally
-
-```bash
-# 1. Clone the repo
-git clone https://github.com/funfake/circular.git
-cd circular
-
-# 2. Install dependencies
-npm install
-# or
-yarn install
-
-# 3. Run the development server
-npm run dev
-# or
-yarn dev
-
-# 4. Open in browser
-http://localhost:3000 
