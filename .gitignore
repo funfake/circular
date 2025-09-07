@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# convex generated files
+convex/_generated/
+
+# IDE specific files
+.vscode/
+.cursor/
+*.code-workspace
