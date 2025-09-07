@@ -70,6 +70,18 @@ Future improvements:
 
 ---
 
+## 👥 Team
+
+William · Kevin · Juan Carlos · Yingbo
+
+---
+
+## 📜 License
+
+This project was created during [BLACKBOX.AI x 42AI Agents Hackathon] 2025. 
+
+---
+
 ## ⚙️ Getting Started
 
 ### Prerequisites
@@ -94,14 +106,4 @@ npm run dev
 yarn dev
 
 # 4. Open in browser
-http://localhost:3000
-
-## 👥 Team
-
-William · Kevin · Juan Carlos · Yingbo
-
----
-
-## 📜 License
-
-This project was created during [BLACKBOX.AI x 42AI Agents Hackathon] 2025.  
+http://localhost:3000 
