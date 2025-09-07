@@ -63,7 +63,9 @@ export default defineSchema({
     // coding agent fields
     prId: v.optional(v.string()), // github pull request id
     finishedAt: v.optional(v.number()), // timestamp when the job is finished (created ts is set by convex automatically)
-  }),
+  })
+    .index("by_ticket", ["ticketId"]) // efficient per-ticket lookups
+    .index("by_project", ["projectId"]), // efficient per-project listing
 
   // BlackBox AI Integration Tables (from HEAD branch)
   // Users table
