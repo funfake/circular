@@ -89,6 +89,8 @@ export const listUserProjects = query({
     if (!identity) throw new Error("Unauthenticated");
     const userId = identity.subject;
 
+    console.log("userId", userId);
+
     const memberships = await ctx.db
       .query("members")
       .withIndex("by_member", (q) => q.eq("userId", userId))

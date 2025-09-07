@@ -4,7 +4,6 @@ import {
   internalAction,
   internalMutation,
   internalQuery,
-  mutation,
   query,
 } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
@@ -154,15 +153,12 @@ export const refreshProjectTickets = action({
     // Check if user is authenticated and is a member of the project
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthenticated");
-
+    
     const userId = identity.subject;
-    const membership = await ctx.runQuery(
-      internal.tickets.checkProjectMembership,
-      {
-        projectId,
-        userId,
-      }
-    );
+    const membership = await ctx.runQuery(internal.tickets.checkProjectMembership, {
+      projectId,
+      userId,
+    });
     if (!membership) {
       throw new Error("Forbidden");
     }
@@ -266,42 +262,5 @@ export const listAllProjectsInternal = internalQuery({
   handler: async (ctx) => {
     const projects = await ctx.db.query("projects").collect();
     return projects.map((p) => ({ _id: p._id }));
-  },
-});
-
-// Public mutation to delete a ticket and its associated jobs
-export const deleteTicket = mutation({
-  args: { ticketId: v.id("tickets") },
-  handler: async (ctx, { ticketId }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Unauthenticated");
-
-    // Get the ticket to verify project membership
-    const ticket = await ctx.db.get(ticketId);
-    if (!ticket) throw new Error("Ticket not found");
-
-    const userId = identity.subject;
-    const membership = await ctx.db
-      .query("members")
-      .withIndex("by_project_member", (q) =>
-        q.eq("projectId", ticket.projectId).eq("userId", userId)
-      )
-      .unique();
-    if (!membership) throw new Error("Forbidden");
-
-    // Delete all jobs associated with this ticket
-    const jobs = await ctx.db
-      .query("jobs")
-      .filter((q) => q.eq(q.field("ticketId"), ticketId))
-      .collect();
-
-    for (const job of jobs) {
-      await ctx.db.delete(job._id);
-    }
-
-    // Delete the ticket
-    await ctx.db.delete(ticketId);
-
-    return { success: true, jobsDeleted: jobs.length };
   },
 });
