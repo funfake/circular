@@ -121,7 +121,7 @@ export const listProjectTickets = query({
       .collect();
 
     return items.toSorted(
-      (a, b) => Number(b.jiraId ?? 0) - Number(a.jiraId ?? 0)
+      (a: Doc<"tickets">, b: Doc<"tickets">) => Number(b.jiraId ?? 0) - Number(a.jiraId ?? 0)
     );
   },
 });

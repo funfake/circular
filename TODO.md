@@ -1,71 +1,48 @@
-# BlackBox AI Integration - Runtime Error Fix & API Merge
+# Move Page Content to Unauthenticated - Implementation Plan
 
-## Issues Fixed
-1. **Runtime Error**: `ArgumentValidationError: Object is missing the required field 'userId'` in `blackboxApi:getUserDashboard`
-2. **API Conflicts**: Duplicate BlackBox AI API files in `api/blackbox-ai/convex/` and main `convex/` directory
+## Tasks to Complete:
 
-## Root Causes
-1. The `useBlackBoxIntegration` hook was calling `useQuery` for `getUserDashboard` and `getRecentActivity` without required parameters
-2. Conflicting API implementations between the separate API directory and main convex directory
+- [x] Restructure app/page.tsx to show rich content to unauthenticated users ONLY
+  - [x] Move platform features section to unauthenticated users only
+  - [x] Move "How It Works" section to unauthenticated users only
+  - [x] Move BlackBox demo access to unauthenticated users only
+  - [x] Keep project management features (CreateProjectDialog, PendingInvites, UserProjects) for authenticated users only
+  - [x] Enhance the unauthenticated experience with better call-to-action
+  - [x] **UPDATED**: Hide Platform Features when logged in (user feedback implemented)
 
-## Changes Made
+## Completed:
+- [x] Analysis of current structure
+- [x] Plan creation and approval
+- [x] Successfully restructured app/page.tsx
+- [x] **FINAL IMPLEMENTATION**: Platform features, "How It Works", and BlackBox demo are ONLY visible to unauthenticated users
+- [x] Project management features are protected for authenticated users only
+- [x] Enhanced unauthenticated user experience with improved call-to-action
+- [x] **USER FEEDBACK IMPLEMENTED**: Platform Features section is now hidden when users are logged in
 
-### ✅ lib/blackbox-integration.ts
-- Removed `getUserDashboard` and `getRecentActivity` from the main `useBlackBoxIntegration` hook
-- Created separate parameterized hooks:
-  - `useUserDashboard(userId: Id<"users"> | undefined)`
-  - `useRecentActivity(userId: Id<"users"> | undefined)`
-- Both new hooks use "skip" when userId is undefined to prevent validation errors
-- Added null checks for user and repository creation
-- Fixed priority field handling in ticket creation
+## Final Structure:
+- **Authenticated Users See**: Only their project management dashboard (CreateProjectDialog, PendingInvites, UserProjects)
+- **Unauthenticated Users See**: Platform Features, How It Works, Quick Actions, and Get Started call-to-action
 
-### ✅ convex/blackboxApi.ts
-- Merged and consolidated all BlackBox AI functionality into single file
-- Uses direct database operations instead of circular API calls
-- Properly handles `blackboxTickets` table (separate from Jira `tickets`)
-- Implements user and repository creation with duplicate checking
-- All functions now work with the merged schema
+## Thorough Testing Completed:
+- [x] **Unauthenticated Experience Testing:**
+  - [x] Platform features section displays correctly for unauthenticated users only
+  - [x] "How It Works" section (6 steps) is visible and readable for unauthenticated users only
+  - [x] BlackBox AI demo button is accessible and functional for unauthenticated users only
+  - [x] Enhanced call-to-action with sign-up/sign-in buttons works
+  - [x] Navigation to BlackBox demo page works (shows auth required message)
+  - [x] Sign-up functionality works (redirects to WorkOS sign-up form)
+  - [x] Sign-in functionality works (redirects to WorkOS sign-in form)
+  - [x] Cross-navigation between sign-up and sign-in works
 
-### ✅ Schema Integration
-- Main `convex/schema.ts` already contains merged schema with:
-  - Project management tables (`projects`, `tickets`, `jobs`, etc.)
-  - BlackBox AI tables (`users`, `repositories`, `blackboxTickets`, `developmentTasks`)
-- Proper table separation: `tickets` for Jira, `blackboxTickets` for BlackBox AI
+- [x] **Code Structure Verification:**
+  - [x] AuthenticatedContent component properly contains project management features
+  - [x] CreateProjectDialog, PendingInvites, and UserProjects are protected for authenticated users only
+  - [x] Platform Features section is properly hidden from authenticated users
+  - [x] Clean separation between authenticated and unauthenticated content
+  - [x] Proper component separation and organization
 
-### ✅ Cleanup
-- Removed duplicate `api/blackbox-ai/` directory
-- Removed redundant `convex/blackboxTickets.ts` file
-- Consolidated all BlackBox functionality into main convex directory
-
-## Impact
-- ✅ Fixed runtime validation error
-- ✅ Resolved API conflicts and duplications
-- ✅ Maintained backward compatibility for existing components
-- ✅ BlackBox demo page continues to work without changes
-- ✅ Clean, consolidated codebase structure
-- ✅ No circular dependencies or TypeScript errors
-
-## Usage
-For components that need user dashboard or recent activity data:
-```typescript
-import { useUserDashboard, useRecentActivity } from "@/lib/blackbox-integration";
-
-// In component:
-const userDashboard = useUserDashboard(userId);
-const recentActivity = useRecentActivity(userId);
-```
-
-For the main BlackBox integration:
-```typescript
-import { useBlackBoxIntegration } from "@/lib/blackbox-integration";
-
-const {
-  createUserWithRepo,
-  createAndProcessTicket,
-  retryFailedTasks,
-  getSystemStats,
-} = useBlackBoxIntegration();
-```
-
-## Status: COMPLETED ✅
-All conflicts resolved, API merged, and runtime errors fixed.
+- [x] **Navigation and Layout Testing:**
+  - [x] Page layout and styling remain consistent
+  - [x] All buttons and links function properly
+  - [x] Responsive design works correctly
+  - [x] No console errors affecting functionality (CORS warnings are expected in dev mode)
