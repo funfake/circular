@@ -2,9 +2,10 @@ import { v } from "convex/values";
 import { mutation, query, action } from "./_generated/server";
 import { api } from "./_generated/api";
 
-// Main API endpoints for the BlackBox AI integration
+// Note: This file provides BlackBox AI integration for the demo
+// It works with the merged schema that includes both project management and BlackBox AI tables
 
-// Create a complete workflow: user -> repository -> ticket -> process
+// Create user and repository in one transaction (for BlackBox AI demo)
 export const createUserWithRepo = mutation({
   args: {
     userData: v.object({
@@ -19,18 +20,31 @@ export const createUserWithRepo = mutation({
     }),
   },
   handler: async (ctx, args) => {
-    // Create user first
-    const user = await ctx.runMutation(api.users.createUser, args.userData);
+    const now = Date.now();
     
-    if (!user) {
-      throw new Error("Failed to create user");
-    }
-
-    // Add repository for the user
-    const repository = await ctx.runMutation(api.repositories.addRepository, {
-      userId: user._id,
-      ...args.repositoryData,
+    // Create user in the users table (BlackBox AI schema)
+    const userId = await ctx.db.insert("users", {
+      email: args.userData.email,
+      name: args.userData.name,
+      githubUsername: args.userData.githubUsername,
+      createdAt: now,
+      updatedAt: now,
     });
+
+    // Create repository in the repositories table (BlackBox AI schema)
+    const repositoryId = await ctx.db.insert("repositories", {
+      userId,
+      owner: args.repositoryData.owner,
+      name: args.repositoryData.name,
+      fullName: `${args.repositoryData.owner}/${args.repositoryData.name}`,
+      defaultBranch: args.repositoryData.defaultBranch || "main",
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const user = await ctx.db.get(userId);
+    const repository = await ctx.db.get(repositoryId);
 
     return {
       user,
@@ -39,7 +53,7 @@ export const createUserWithRepo = mutation({
   },
 });
 
-// Create a ticket and immediately start processing it
+// Create and process a BlackBox ticket (separate from project management tickets)
 export const createAndProcessTicket = mutation({
   args: {
     userId: v.id("users"),
@@ -57,26 +71,34 @@ export const createAndProcessTicket = mutation({
     autoProcess: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    // Create the ticket
-    const ticket = await ctx.runMutation(api.tickets.createTicket, {
+    const now = Date.now();
+    
+    // Create BlackBox ticket (using blackboxTickets table)
+    const ticketId = await ctx.db.insert("blackboxTickets", {
       userId: args.userId,
       repositoryId: args.repositoryId,
       title: args.ticketData.title,
       description: args.ticketData.description,
-      priority: args.ticketData.priority,
+      priority: args.ticketData.priority || "medium",
+      status: "pending",
+      createdAt: now,
+      updatedAt: now,
     });
-
-    if (!ticket) {
-      throw new Error("Failed to create ticket");
-    }
 
     let task = null;
     if (args.autoProcess !== false) {
-      // Start processing immediately
-      task = await ctx.runMutation(api.tickets.assignTicketForDevelopment, {
-        ticketId: ticket._id,
+      // Create development task
+      const taskId = await ctx.db.insert("developmentTasks", {
+        ticketId,
+        repositoryId: args.repositoryId,
+        userId: args.userId,
+        status: "queued",
+        startedAt: now,
       });
+      task = await ctx.db.get(taskId);
     }
+
+    const ticket = await ctx.db.get(ticketId);
 
     return {
       ticket,
@@ -85,33 +107,47 @@ export const createAndProcessTicket = mutation({
   },
 });
 
-// Get dashboard data for a user
+// Get user dashboard data for BlackBox AI
 export const getUserDashboard = query({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    const [user, repositories, tickets, tasks] = await Promise.all([
-      ctx.runQuery(api.users.getUser, { userId: args.userId }),
-      ctx.runQuery(api.repositories.getUserRepositories, { userId: args.userId }),
-      ctx.runQuery(api.tickets.getUserTickets, { userId: args.userId }),
-      ctx.runQuery(api.tasks.getUserTasks, { userId: args.userId }),
-    ]);
+    // Get user data
+    const user = await ctx.db.get(args.userId);
+    
+    // Get user's repositories
+    const repositories = await ctx.db
+      .query("repositories")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    // Get user's BlackBox tickets
+    const tickets = await ctx.db
+      .query("blackboxTickets")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    // Get user's development tasks
+    const tasks = await ctx.db
+      .query("developmentTasks")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
 
     // Group tickets by status
     const ticketsByStatus = {
-      pending: tickets.filter((t: any) => t.status === "pending").length,
-      processing: tickets.filter((t: any) => t.status === "processing").length,
-      completed: tickets.filter((t: any) => t.status === "completed").length,
-      failed: tickets.filter((t: any) => t.status === "failed").length,
+      pending: tickets.filter(t => t.status === "pending").length,
+      processing: tickets.filter(t => t.status === "processing").length,
+      completed: tickets.filter(t => t.status === "completed").length,
+      failed: tickets.filter(t => t.status === "failed").length,
     };
 
     // Group tasks by status
     const tasksByStatus = {
-      queued: tasks.filter((t: any) => t.status === "queued").length,
-      analyzing: tasks.filter((t: any) => t.status === "analyzing").length,
-      generating: tasks.filter((t: any) => t.status === "generating").length,
-      committing: tasks.filter((t: any) => t.status === "committing").length,
-      completed: tasks.filter((t: any) => t.status === "completed").length,
-      failed: tasks.filter((t: any) => t.status === "failed").length,
+      queued: tasks.filter(t => t.status === "queued").length,
+      analyzing: tasks.filter(t => t.status === "analyzing").length,
+      generating: tasks.filter(t => t.status === "generating").length,
+      committing: tasks.filter(t => t.status === "committing").length,
+      completed: tasks.filter(t => t.status === "completed").length,
+      failed: tasks.filter(t => t.status === "failed").length,
     };
 
     return {
@@ -121,7 +157,7 @@ export const getUserDashboard = query({
       tasks,
       stats: {
         totalRepositories: repositories.length,
-        activeRepositories: repositories.filter((r: any) => r.isActive).length,
+        activeRepositories: repositories.filter(r => r.isActive).length,
         totalTickets: tickets.length,
         totalTasks: tasks.length,
         ticketsByStatus,
@@ -135,40 +171,45 @@ export const getUserDashboard = query({
 export const getRecentActivity = query({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    const [tickets, tasks] = await Promise.all([
-      ctx.runQuery(api.tickets.getUserTickets, { userId: args.userId }),
-      ctx.runQuery(api.tasks.getUserTasks, { userId: args.userId }),
-    ]);
+    // Get recent tickets
+    const tickets = await ctx.db
+      .query("blackboxTickets")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .take(10);
 
-    // Get recent tickets (last 10)
-    const recentTickets = tickets.slice(0, 10);
-    
-    // Get recent tasks (last 10)
-    const recentTasks = tasks.slice(0, 10);
+    // Get recent tasks
+    const tasks = await ctx.db
+      .query("developmentTasks")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .take(10);
 
     return {
-      recentTickets,
-      recentTasks,
+      recentTickets: tickets,
+      recentTasks: tasks,
     };
   },
 });
 
-// Retry multiple failed tasks
+// Retry failed tasks for a user
 export const retryFailedTasks = mutation({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    // Get all failed tasks for the user
-    const allTasks = await ctx.runQuery(api.tasks.getUserTasks, { userId: args.userId });
-    const failedTasks = allTasks.filter((task: any) => task.status === "failed");
-
+    const failedTasks = await ctx.db
+      .query("developmentTasks")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("status"), "failed"))
+      .collect();
+    
     const results = [];
     for (const task of failedTasks) {
       try {
-        const retriedTask = await ctx.runMutation(api.tasks.retryFailedTask, {
-          taskId: task._id,
+        await ctx.db.patch(task._id, {
+          status: "queued",
+          errorMessage: undefined,
         });
-
-        results.push({ taskId: task._id, success: true, task: retriedTask });
+        results.push({ taskId: task._id, success: true });
       } catch (error) {
         results.push({ 
           taskId: task._id, 
@@ -186,24 +227,35 @@ export const retryFailedTasks = mutation({
   },
 });
 
-// Get system statistics (for monitoring)
+// Get system statistics
 export const getSystemStats = query({
   args: {},
   handler: async (ctx) => {
-    const [pendingTickets, activeTasks] = await Promise.all([
-      ctx.runQuery(api.tickets.getPendingTickets),
-      ctx.runQuery(api.tasks.getActiveTasks),
-    ]);
+    const pendingTickets = await ctx.db
+      .query("blackboxTickets")
+      .withIndex("by_status", (q) => q.eq("status", "pending"))
+      .collect();
+
+    const queuedTasks = await ctx.db
+      .query("developmentTasks")
+      .withIndex("by_status", (q) => q.eq("status", "queued"))
+      .collect();
+
+    const allTasks = await ctx.db
+      .query("developmentTasks")
+      .collect();
+
+    const processingTasks = allTasks.filter(t => 
+      t.status === "analyzing" || 
+      t.status === "generating" || 
+      t.status === "committing"
+    );
 
     return {
       pendingTickets: pendingTickets.length,
-      activeTasks: activeTasks.length,
-      queuedTasks: activeTasks.filter((t: any) => t.status === "queued").length,
-      processingTasks: activeTasks.filter((t: any) => 
-        t.status === "analyzing" || 
-        t.status === "generating" || 
-        t.status === "committing"
-      ).length,
+      activeTasks: queuedTasks.length + processingTasks.length,
+      queuedTasks: queuedTasks.length,
+      processingTasks: processingTasks.length,
       timestamp: Date.now(),
     };
   },

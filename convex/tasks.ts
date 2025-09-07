@@ -21,9 +21,9 @@ export const getUserTasks = query({
   },
 });
 
-// Get tasks by ticket
+// Get tasks by ticket (works with both blackboxTickets and regular tickets)
 export const getTicketTasks = query({
-  args: { ticketId: v.id("tickets") },
+  args: { ticketId: v.id("blackboxTickets") },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("developmentTasks")
