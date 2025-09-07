@@ -101,6 +101,10 @@ export class BlackBoxIntegration {
         }
       });
 
+      if (!userRepo.user || !userRepo.repository) {
+        throw new Error("Failed to create user and repository");
+      }
+
       // Create and process ticket
       const result = await this.client.mutation(api.blackboxApi.createAndProcessTicket, {
         userId: userRepo.user._id,
@@ -108,7 +112,7 @@ export class BlackBoxIntegration {
         ticketData: {
           title: ticketData.title,
           description: ticketData.description,
-          priority: ticketData.priority,
+          ...(ticketData.priority && { priority: ticketData.priority }),
         },
         autoProcess: true
       });
@@ -182,17 +186,22 @@ import { useQuery, useMutation } from "convex/react";
 export function useBlackBoxIntegration() {
   const createUserWithRepo = useMutation(api.blackboxApi.createUserWithRepo);
   const createAndProcessTicket = useMutation(api.blackboxApi.createAndProcessTicket);
-  const getUserDashboard = useQuery(api.blackboxApi.getUserDashboard);
-  const getRecentActivity = useQuery(api.blackboxApi.getRecentActivity);
   const retryFailedTasks = useMutation(api.blackboxApi.retryFailedTasks);
   const getSystemStats = useQuery(api.blackboxApi.getSystemStats);
 
   return {
     createUserWithRepo,
     createAndProcessTicket,
-    getUserDashboard,
-    getRecentActivity,
     retryFailedTasks,
     getSystemStats,
   };
+}
+
+// Separate hooks for parameterized queries
+export function useUserDashboard(userId: Id<"users"> | undefined) {
+  return useQuery(api.blackboxApi.getUserDashboard, userId ? { userId } : "skip");
+}
+
+export function useRecentActivity(userId: Id<"users"> | undefined) {
+  return useQuery(api.blackboxApi.getRecentActivity, userId ? { userId } : "skip");
 }

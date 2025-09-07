@@ -1,73 +1,71 @@
-# Merge Conflict Resolution Progress
+# BlackBox AI Integration - Runtime Error Fix & API Merge
 
-## Files to Resolve:
-- [x] app/page.tsx - Merge project management UI with BlackBox demo link
-- [x] convex/schema.ts - Combine both schemas (project management + BlackBox AI)
-- [x] convex/tickets.ts - Use main branch version (project management)
-- [x] yarn.lock - Resolve dependency conflicts
+## Issues Fixed
+1. **Runtime Error**: `ArgumentValidationError: Object is missing the required field 'userId'` in `blackboxApi:getUserDashboard`
+2. **API Conflicts**: Duplicate BlackBox AI API files in `api/blackbox-ai/convex/` and main `convex/` directory
 
-## Completed:
-- [x] Created resolution plan
-- [x] Got user approval
-- [x] Resolved app/page.tsx - Successfully merged both feature sets
-- [x] Resolved convex/schema.ts - Combined both schemas with renamed BlackBox tables
-- [x] Resolved convex/tickets.ts - Used project management version with auth fixes
-- [x] Resolved yarn.lock - Accepted current version
+## Root Causes
+1. The `useBlackBoxIntegration` hook was calling `useQuery` for `getUserDashboard` and `getRecentActivity` without required parameters
+2. Conflicting API implementations between the separate API directory and main convex directory
 
-## Next Steps After Resolution:
-- [x] All merge conflicts resolved successfully
-- [x] Git merge committed
-- [x] Test application functionality ✅ COMPLETED
-- [x] Verify all imports work correctly ✅ COMPLETED
-- [x] Check database schema compatibility ✅ COMPLETED
+## Changes Made
 
-## Comprehensive Testing Results:
+### ✅ lib/blackbox-integration.ts
+- Removed `getUserDashboard` and `getRecentActivity` from the main `useBlackBoxIntegration` hook
+- Created separate parameterized hooks:
+  - `useUserDashboard(userId: Id<"users"> | undefined)`
+  - `useRecentActivity(userId: Id<"users"> | undefined)`
+- Both new hooks use "skip" when userId is undefined to prevent validation errors
+- Added null checks for user and repository creation
+- Fixed priority field handling in ticket creation
 
-### ✅ Core Application
-- [x] TypeScript compilation: PASSED
-- [x] Dev server startup: PASSED (localhost:3000)
-- [x] Main page loading: PASSED (200 status, 407ms)
-- [x] Navigation: PASSED (header, logo, auth buttons)
-- [x] Page routing: PASSED
+### ✅ convex/blackboxApi.ts
+- Merged and consolidated all BlackBox AI functionality into single file
+- Uses direct database operations instead of circular API calls
+- Properly handles `blackboxTickets` table (separate from Jira `tickets`)
+- Implements user and repository creation with duplicate checking
+- All functions now work with the merged schema
 
-### ✅ UI Components & Features
-- [x] Home page content: PASSED (project management UI)
-- [x] BlackBox demo page: PASSED (authentication guard working)
-- [x] Authentication state handling: PASSED (unauthenticated flow)
-- [x] Error handling: PASSED (WorkOS auth errors handled gracefully)
+### ✅ Schema Integration
+- Main `convex/schema.ts` already contains merged schema with:
+  - Project management tables (`projects`, `tickets`, `jobs`, etc.)
+  - BlackBox AI tables (`users`, `repositories`, `blackboxTickets`, `developmentTasks`)
+- Proper table separation: `tickets` for Jira, `blackboxTickets` for BlackBox AI
 
-### ✅ Merged Features
-- [x] Project management components: PASSED (CreateProjectDialog, PendingInvites, UserProjects)
-- [x] BlackBox AI integration: PASSED (demo page accessible, properly protected)
-- [x] Combined schema: PASSED (both feature sets integrated)
-- [x] Middleware: PASSED (authentication routing working)
+### ✅ Cleanup
+- Removed duplicate `api/blackbox-ai/` directory
+- Removed redundant `convex/blackboxTickets.ts` file
+- Consolidated all BlackBox functionality into main convex directory
 
-### ⚠️ Known Issues (Configuration)
-- WorkOS authentication: Invalid client ID (placeholder configuration)
-  - Status: Expected - requires proper WorkOS setup
-  - Impact: Authentication flow blocked but error handling works correctly
-  - Solution: Update WORKOS_CLIENT_ID in environment variables
+## Impact
+- ✅ Fixed runtime validation error
+- ✅ Resolved API conflicts and duplications
+- ✅ Maintained backward compatibility for existing components
+- ✅ BlackBox demo page continues to work without changes
+- ✅ Clean, consolidated codebase structure
+- ✅ No circular dependencies or TypeScript errors
 
-### 🔧 Database Schema
-- [x] Projects table: PASSED
-- [x] Credentials table: PASSED  
-- [x] Invitations table: PASSED
-- [x] Members table: PASSED
-- [x] Tickets table: PASSED (project management version)
-- [x] Jobs table: PASSED
-- [x] BlackBox AI tables: PASSED (users, repositories, developmentTasks)
+## Usage
+For components that need user dashboard or recent activity data:
+```typescript
+import { useUserDashboard, useRecentActivity } from "@/lib/blackbox-integration";
 
-## Summary:
-✅ **MERGE CONFLICTS RESOLVED & TESTED SUCCESSFULLY**
+// In component:
+const userDashboard = useUserDashboard(userId);
+const recentActivity = useRecentActivity(userId);
+```
 
-All 4 conflicted files have been resolved and thoroughly tested:
-- **app/page.tsx**: Successfully merged project management UI with BlackBox AI demo features
-- **convex/schema.ts**: Combined both schemas with proper table separation (blackboxTickets vs tickets)
-- **convex/tickets.ts**: Used project management version with improved authentication
-- **yarn.lock**: Dependency conflicts resolved
+For the main BlackBox integration:
+```typescript
+import { useBlackBoxIntegration } from "@/lib/blackbox-integration";
 
-The application now includes both:
-1. **Project Management Features**: Jira integration, project creation, team management
-2. **BlackBox AI Features**: Demo functionality and AI-powered code generation
+const {
+  createUserWithRepo,
+  createAndProcessTicket,
+  retryFailedTasks,
+  getSystemStats,
+} = useBlackBoxIntegration();
+```
 
-**Status: Ready for production deployment! 🚀**
+## Status: COMPLETED ✅
+All conflicts resolved, API merged, and runtime errors fixed.

@@ -14,6 +14,7 @@ export default defineSchema({
     projectId: v.id("projects"),
     jiraSourceUrl: v.optional(v.string()),
     githubToken: v.optional(v.string()),
+    githubPersonalAccessToken: v.optional(v.string()),
     repositoryId: v.optional(v.string()),
   }).index("by_project", ["projectId"]),
 

@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 import { mutation, query, action } from "./_generated/server";
-import { api } from "./_generated/api";
 
 // Note: This file provides BlackBox AI integration for the demo
 // It works with the merged schema that includes both project management and BlackBox AI tables
@@ -22,29 +21,60 @@ export const createUserWithRepo = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
     
-    // Create user in the users table (BlackBox AI schema)
-    const userId = await ctx.db.insert("users", {
-      email: args.userData.email,
-      name: args.userData.name,
-      githubUsername: args.userData.githubUsername,
-      createdAt: now,
-      updatedAt: now,
-    });
+    // Check if user already exists
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.userData.email))
+      .first();
 
-    // Create repository in the repositories table (BlackBox AI schema)
-    const repositoryId = await ctx.db.insert("repositories", {
-      userId,
-      owner: args.repositoryData.owner,
-      name: args.repositoryData.name,
-      fullName: `${args.repositoryData.owner}/${args.repositoryData.name}`,
-      defaultBranch: args.repositoryData.defaultBranch || "main",
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-    });
+    let user;
+    if (existingUser) {
+      user = existingUser;
+    } else {
+      // Create user in the users table
+      const userId = await ctx.db.insert("users", {
+        email: args.userData.email,
+        name: args.userData.name,
+        githubUsername: args.userData.githubUsername,
+        createdAt: now,
+        updatedAt: now,
+      });
+      user = await ctx.db.get(userId);
+    }
 
-    const user = await ctx.db.get(userId);
-    const repository = await ctx.db.get(repositoryId);
+    // Check if repository already exists for this user
+    const existingRepo = await ctx.db
+      .query("repositories")
+      .withIndex("by_user_and_name", (q) => 
+        q.eq("userId", user!._id)
+         .eq("owner", args.repositoryData.owner)
+         .eq("name", args.repositoryData.name)
+      )
+      .first();
+
+    let repository;
+    if (existingRepo) {
+      // Update existing repository
+      await ctx.db.patch(existingRepo._id, {
+        defaultBranch: args.repositoryData.defaultBranch || existingRepo.defaultBranch,
+        isActive: true,
+        updatedAt: now,
+      });
+      repository = await ctx.db.get(existingRepo._id);
+    } else {
+      // Create repository in the repositories table
+      const repositoryId = await ctx.db.insert("repositories", {
+        userId: user!._id,
+        owner: args.repositoryData.owner,
+        name: args.repositoryData.name,
+        fullName: `${args.repositoryData.owner}/${args.repositoryData.name}`,
+        defaultBranch: args.repositoryData.defaultBranch || "main",
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+      repository = await ctx.db.get(repositoryId);
+    }
 
     return {
       user,
@@ -87,6 +117,13 @@ export const createAndProcessTicket = mutation({
 
     let task = null;
     if (args.autoProcess !== false) {
+      // Update ticket status to processing
+      await ctx.db.patch(ticketId, {
+        status: "processing",
+        assignedAt: now,
+        updatedAt: now,
+      });
+
       // Create development task
       const taskId = await ctx.db.insert("developmentTasks", {
         ticketId,
@@ -208,6 +245,8 @@ export const retryFailedTasks = mutation({
         await ctx.db.patch(task._id, {
           status: "queued",
           errorMessage: undefined,
+          completedAt: undefined,
+          startedAt: Date.now(),
         });
         results.push({ taskId: task._id, success: true });
       } catch (error) {

@@ -13,10 +13,14 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as blackboxApi from "../blackboxApi.js";
 import type * as credentials from "../credentials.js";
 import type * as crons from "../crons.js";
 import type * as project from "../project.js";
+import type * as repositories from "../repositories.js";
+import type * as tasks from "../tasks.js";
 import type * as tickets from "../tickets.js";
+import type * as users from "../users.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -27,10 +31,14 @@ import type * as tickets from "../tickets.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  blackboxApi: typeof blackboxApi;
   credentials: typeof credentials;
   crons: typeof crons;
   project: typeof project;
+  repositories: typeof repositories;
+  tasks: typeof tasks;
   tickets: typeof tickets;
+  users: typeof users;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,
