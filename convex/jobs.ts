@@ -1,12 +1,13 @@
 import {
   internalAction,
   internalMutation,
+  internalQuery,
   mutation,
   query,
 } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { Doc, Id } from "./_generated/dataModel";
+import { Doc } from "./_generated/dataModel";
 
 // Job splitting prompt framework
 const JOB_SPLITTING_FRAMEWORK = `
@@ -76,6 +77,95 @@ export const createJobsForTicket = internalMutation({
     }
 
     return { success: true, jobsCreated: createdJobs.length };
+  },
+});
+
+// Internal query: list jobs for a ticket (for internal actions)
+export const listJobsForTicketInternal = internalQuery({
+  args: { ticketId: v.id("tickets") },
+  handler: async (ctx, { ticketId }) => {
+    return await ctx.db
+      .query("jobs")
+      .withIndex("by_ticket", (q) => q.eq("ticketId", ticketId))
+      .collect();
+  },
+});
+
+// Internal action: if all jobs for a ticket are complete, update Jira status to 41 (done)
+export const updateJiraIfAllJobsComplete = internalAction({
+  args: {
+    ticketId: v.id("tickets"),
+  },
+  handler: async (
+    ctx,
+    { ticketId }
+  ): Promise<
+    { success: true } | { skipped: true; reason: string } | { error: string }
+  > => {
+    // Get ticket details
+    const ticket = await ctx.runQuery(internal.assessment.getTicketById, {
+      ticketId,
+    });
+    if (!ticket) {
+      return { error: "Ticket not found" } as const;
+    }
+
+    // Load all jobs for this ticket
+    const jobs = await ctx.runQuery(internal.jobs.listJobsForTicketInternal, {
+      ticketId,
+    });
+
+    if (jobs.length === 0) {
+      return { skipped: true, reason: "No jobs for ticket" } as const;
+    }
+
+    const allComplete = jobs.every(
+      (j: Doc<"jobs">) => Boolean(j.finishedAt) && Boolean(j.prId)
+    );
+    if (!allComplete) {
+      return { skipped: true, reason: "Jobs not all completed yet" } as const;
+    }
+
+    // Get Jira URL for this project
+    const jiraUrl = await ctx.runQuery(
+      internal.tickets.getJiraSourceUrlInternal,
+      { projectId: ticket.projectId }
+    );
+
+    if (!jiraUrl) {
+      return { skipped: true, reason: "No Jira URL configured" } as const;
+    }
+
+    try {
+      const updateResponse = await fetch(jiraUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ticketId: ticket.jiraId,
+          ticketStatus: "41",
+        }),
+      });
+
+      if (!updateResponse.ok) {
+        const errorText = await updateResponse.text();
+        console.error(
+          `Failed to update Jira ticket status: ${updateResponse.status} ${updateResponse.statusText}`,
+          errorText
+        );
+        return {
+          error: `Jira update failed: ${updateResponse.status}`,
+        } as const;
+      }
+
+      return { success: true } as const;
+    } catch (error) {
+      console.error("Error updating Jira ticket status:", error);
+      return {
+        error: error instanceof Error ? error.message : "Unknown error",
+      } as const;
+    }
   },
 });
 
@@ -267,7 +357,7 @@ export const listTicketJobs = query({
     // Get all jobs for this ticket
     const jobs = await ctx.db
       .query("jobs")
-      .filter((q) => q.eq(q.field("ticketId"), ticketId))
+      .withIndex("by_ticket", (q) => q.eq("ticketId", ticketId))
       .collect();
 
     return jobs;
@@ -304,6 +394,11 @@ export const updateJobStatus = mutation({
       finishedAt,
     });
 
+    // After finishing a job, check if all jobs for the ticket are complete and update Jira if so
+    await ctx.scheduler.runAfter(0, internal.jobs.updateJiraIfAllJobsComplete, {
+      ticketId: job.ticketId,
+    });
+
     return { success: true };
   },
 });
@@ -330,7 +425,7 @@ export const listProjectJobs = query({
     // Get all jobs for this project
     const jobs = await ctx.db
       .query("jobs")
-      .filter((q) => q.eq(q.field("projectId"), projectId))
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
       .collect();
 
     // Enrich with ticket data

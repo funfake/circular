@@ -289,10 +289,10 @@ export const deleteTicket = mutation({
       .unique();
     if (!membership) throw new Error("Forbidden");
 
-    // Delete all jobs associated with this ticket
+    // Delete all jobs associated with this ticket (using index)
     const jobs = await ctx.db
       .query("jobs")
-      .filter((q) => q.eq(q.field("ticketId"), ticketId))
+      .withIndex("by_ticket", (q) => q.eq("ticketId", ticketId))
       .collect();
 
     for (const job of jobs) {

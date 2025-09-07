@@ -34,7 +34,7 @@ export function PushToCodeButton({
 
     try {
       // Mock 15 second loading delay
-      await new Promise((resolve) => setTimeout(resolve, 15000));
+      await new Promise((resolve) => setTimeout(resolve, 7000));
 
       // Generate random PR ID (mock)
       const randomPrId = `PR-${Math.floor(Math.random() * 9000) + 1000}`;
