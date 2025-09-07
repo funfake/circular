@@ -34,7 +34,7 @@ function Content() {
     <Container className="py-8">
       <h1 className="text-2xl font-semibold">Project Settings</h1>
       <p className="text-muted-foreground mt-2">{project.name}</p>
-      <div className="mt-6 grid grid-cols-1 gap-6 max-w-md mx-auto">
+      <div className="mt-6 grid grid-cols-1 gap-6 max-w-screen-sm mx-auto">
         <InviteMemberDialog projectId={project._id} />
         <MembersList projectId={project._id} />
         <CredentialsForm projectId={project._id} />

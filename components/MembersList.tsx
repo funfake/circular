@@ -12,6 +12,17 @@ import {
 } from "@/components/ui/h-card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 import type { Id } from "@/convex/_generated/dataModel";
 
@@ -40,28 +51,50 @@ export default function MembersList({
               </HCardDescription>
             </HCardHeader>
             <HCardContent>
-              <Button
-                size="sm"
-                variant="outline"
-                className="disabled:cursor-not-allowed disabled:pointer-events-auto"
-                disabled={m.isCurrentUser || m.isOwner || !m.userId}
-                onClick={async () => {
-                  try {
-                    if (!m.userId) return;
-                    await removeMember({
-                      projectId: projectId,
-                      userId: m.userId,
-                    });
-                    toast.success("Member removed");
-                  } catch (err: unknown) {
-                    const message =
-                      err instanceof Error ? err.message : "Failed to remove";
-                    toast.error(message);
-                  }
-                }}
-              >
-                Remove
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="disabled:cursor-not-allowed disabled:pointer-events-auto"
+                    disabled={m.isCurrentUser || m.isOwner || !m.userId}
+                  >
+                    Remove
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Remove member?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will remove {m.email ?? m.userId ?? "this user"} from
+                      the project.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={async () => {
+                        try {
+                          if (!m.userId) return;
+                          await removeMember({
+                            projectId: projectId,
+                            userId: m.userId,
+                          });
+                          toast.success("Member removed");
+                        } catch (err: unknown) {
+                          const message =
+                            err instanceof Error
+                              ? err.message
+                              : "Failed to remove";
+                          toast.error(message);
+                        }
+                      }}
+                    >
+                      Remove
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </HCardContent>
           </HCard>
         ))}

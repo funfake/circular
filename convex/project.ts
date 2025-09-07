@@ -141,7 +141,7 @@ export const createProject = mutation({
       projectId,
       repositoryId: "",
       jiraSourceUrl: "",
-      githubToken: "",
+      githubPersonalAccessToken: "",
     });
 
     return projectId;
