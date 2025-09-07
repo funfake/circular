@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { action, internalQuery, mutation, query } from "./_generated/server";
+import { api, internal } from "./_generated/api";
 
 export const getProjectCredentials = query({
   args: { projectId: v.id("projects") },
@@ -30,7 +31,7 @@ export const getProjectCredentials = query({
         projectId,
         repositoryId: "",
         jiraSourceUrl: "",
-        githubToken: "",
+        githubPersonalAccessToken: "",
       };
     }
 
@@ -39,7 +40,7 @@ export const getProjectCredentials = query({
       projectId: credentials.projectId,
       repositoryId: credentials.repositoryId ?? "",
       jiraSourceUrl: credentials.jiraSourceUrl ?? "",
-      githubToken: credentials.githubToken ?? "",
+      githubPersonalAccessToken: credentials.githubPersonalAccessToken ?? "",
     };
   },
 });
@@ -49,11 +50,11 @@ export const updateProjectCredentials = mutation({
     projectId: v.id("projects"),
     repositoryId: v.optional(v.string()),
     jiraSourceUrl: v.optional(v.string()),
-    githubToken: v.optional(v.string()),
+    githubPersonalAccessToken: v.optional(v.string()),
   },
   handler: async (
     ctx,
-    { projectId, repositoryId, jiraSourceUrl, githubToken }
+    { projectId, repositoryId, jiraSourceUrl, githubPersonalAccessToken }
   ) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthenticated");
@@ -79,7 +80,8 @@ export const updateProjectCredentials = mutation({
     if (repositoryId !== undefined) fieldsToUpdate.repositoryId = repositoryId;
     if (jiraSourceUrl !== undefined)
       fieldsToUpdate.jiraSourceUrl = jiraSourceUrl;
-    if (githubToken !== undefined) fieldsToUpdate.githubToken = githubToken;
+    if (githubPersonalAccessToken !== undefined)
+      fieldsToUpdate.githubPersonalAccessToken = githubPersonalAccessToken;
 
     if (!existingCredentials) {
       // Create new credentials if they don't exist
@@ -93,5 +95,77 @@ export const updateProjectCredentials = mutation({
     }
 
     return { ok: true as const };
+  },
+});
+
+// Internal: read GitHub credentials for server-side actions
+export const getGithubCredentialsInternal = internalQuery({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    const creds = await ctx.db
+      .query("credentials")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .unique();
+    return {
+      githubToken: creds?.githubPersonalAccessToken ?? "",
+      repositoryId: creds?.repositoryId ?? "",
+    } as const;
+  },
+});
+
+// Action: list repositories accessible by the stored GitHub token
+export const listGithubRepos = action({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+
+    // Ensure current user is a member of the project
+    const project = await ctx.runQuery(api.project.getProjectIfMember, {
+      projectId,
+    });
+    if (project === null) throw new Error("Forbidden");
+
+    // Load token
+    const creds = await ctx.runQuery(
+      internal.credentials.getGithubCredentialsInternal,
+      { projectId }
+    );
+    const token = creds.githubToken.trim();
+    if (!token) throw new Error("No GitHub token configured");
+
+    const url =
+      "https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator,organization_member";
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "jira-to-code",
+      },
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(
+        `GitHub API error: ${res.status} ${res.statusText}${
+          text ? ` - ${text.slice(0, 200)}` : ""
+        }`
+      );
+    }
+
+    const json = (await res.json()) as unknown;
+    const repos = Array.isArray(json) ? json : [];
+    const repositories = repos
+      .map((r) => {
+        if (typeof r !== "object" || r === null) return null;
+        const o = r as Record<string, unknown>;
+        const fullName = String(o["full_name"] ?? "");
+        if (!fullName) return null;
+        return { fullName, private: Boolean(o["private"] ?? false) };
+      })
+      .filter((x): x is { fullName: string; private: boolean } => x !== null);
+
+    return { repositories } as const;
   },
 });

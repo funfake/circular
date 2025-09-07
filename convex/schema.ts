@@ -13,7 +13,7 @@ export default defineSchema({
   credentials: defineTable({
     projectId: v.id("projects"),
     jiraSourceUrl: v.optional(v.string()),
-    githubToken: v.optional(v.string()),
+    githubPersonalAccessToken: v.optional(v.string()),
     repositoryId: v.optional(v.string()),
   }).index("by_project", ["projectId"]),
 
@@ -47,6 +47,7 @@ export default defineSchema({
     jiraDescription: v.string(),
     jiraId: v.string(),
     rejected: v.optional(v.boolean()), // undefined = not yet analyzed
+    rejectionReason: v.optional(v.string()), // reason why the ticket was rejected or approved
   })
     .index("by_project", ["projectId"]) // scope queries by project first
     .index("by_project_jiraId", ["projectId", "jiraId"]), // enable lookups and ordering by jiraId within project

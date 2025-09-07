@@ -20,11 +20,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useEffect } from "react";
+import GitHubRepoCombobox from "@/components/GitHubRepoCombobox";
 
 const schema = z.object({
   repositoryId: z.string().optional(),
   jiraSourceUrl: z.string().optional(),
-  githubToken: z.string().optional(),
+  githubPersonalAccessToken: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -46,7 +47,7 @@ export default function CredentialsForm({
     defaultValues: {
       repositoryId: "",
       jiraSourceUrl: "",
-      githubToken: "",
+      githubPersonalAccessToken: "",
     },
   });
 
@@ -56,7 +57,7 @@ export default function CredentialsForm({
       form.reset({
         repositoryId: credentials.repositoryId,
         jiraSourceUrl: credentials.jiraSourceUrl,
-        githubToken: credentials.githubToken,
+        githubPersonalAccessToken: credentials.githubPersonalAccessToken,
       });
     }
   }, [credentials, form]);
@@ -67,7 +68,8 @@ export default function CredentialsForm({
       const partial: Partial<FormValues> = {};
       if (values.repositoryId) partial.repositoryId = values.repositoryId;
       if (values.jiraSourceUrl) partial.jiraSourceUrl = values.jiraSourceUrl;
-      if (values.githubToken) partial.githubToken = values.githubToken;
+      if (values.githubPersonalAccessToken)
+        partial.githubPersonalAccessToken = values.githubPersonalAccessToken;
 
       await updateCredentials({ projectId, ...partial });
       toast.success("Credentials updated successfully");
@@ -108,19 +110,19 @@ export default function CredentialsForm({
                   <FormControl>
                     <Input placeholder="Your Jira source URL" {...field} />
                   </FormControl>
-                  <FormDescription>
-                    API token for accessing Jira tickets
-                  </FormDescription>
+                  {/* <FormDescription>
+                    URL to fetch Jira tickets from
+                  </FormDescription> */}
                   <FormMessage />
                 </FormItem>
               )}
             />
             <FormField
               control={form.control}
-              name="githubToken"
+              name="githubPersonalAccessToken"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>GitHub Token</FormLabel>
+                  <FormLabel>GitHub Personal Access Token</FormLabel>
                   <FormControl>
                     <Input
                       type="password"
@@ -129,7 +131,16 @@ export default function CredentialsForm({
                     />
                   </FormControl>
                   <FormDescription>
-                    Personal access token for GitHub repository access
+                    Personal access token for GitHub repository access. Create
+                    one at{" "}
+                    <a
+                      className="underline"
+                      target="_blank"
+                      rel="noreferrer"
+                      href="https://github.com/settings/personal-access-tokens"
+                    >
+                      GitHub personal access tokens
+                    </a>
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -140,16 +151,20 @@ export default function CredentialsForm({
               name="repositoryId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Repository ID</FormLabel>
+                  <FormLabel>Repository</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="e.g., owner/repository-name"
-                      {...field}
+                    <GitHubRepoCombobox
+                      projectId={projectId}
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      disabled={
+                        !Boolean(credentials?.githubPersonalAccessToken)
+                      }
                     />
                   </FormControl>
-                  <FormDescription>
+                  {/* <FormDescription>
                     GitHub repository identifier (owner/repo-name)
-                  </FormDescription>
+                  </FormDescription> */}
                   <FormMessage />
                 </FormItem>
               )}

@@ -1,0 +1,47 @@
+[
+{
+"jiraTitle": "Préférences utilisateur backend",
+"jiraDescription": "_(Incomplet)_ Définir API pour stocker préférence theme en DB liée à l’utilisateur. Gestion SSR ?",
+"jiraId": "10018"
+},
+{
+"jiraTitle": "Synchroniser thème multi-tab",
+"jiraDescription": "_(Incomplet)_ Décrire stratégie : écouter storage event pour propager changement. Définir tests.",
+"jiraId": "10016"
+},
+{
+"jiraTitle": "Documentation",
+"jiraDescription": "Ajouter une section docs/theme-toggle.md expliquant comment fonctionne useTheme, où est injecté theme-client.ts, et comment personnaliser les couleurs. Mettre à jour le README avec instructions d’activation.\n\n*Acceptance Criteria*:\n\n\n\n* Doc claire et concise\n* .env.example mis à jour si besoin\n* Lien vers doc dans README",
+"jiraId": "10014"
+},
+{
+"jiraTitle": "Tailwind config + globals.css",
+"jiraDescription": "*Summary*: Configurer Tailwind pour supporter le dark mode\n\n*Description*:\n\nConfigurer tailwind.config.js avec darkMode: \"class\". Ajouter styles basiques dans globals.css (fond clair/foncé).\n\n*Acceptance Criteria*:\n\n\n\n* Config darkMode: \"class\" active\n* .dark applique background foncé\n* Test visuel OK en dev",
+"jiraId": "10012"
+},
+{
+"jiraTitle": "Bouton pour basculer entre dark/light",
+"jiraDescription": "Créer ThemeToggle.tsx qui utilise useTheme(). Doit être accessible : bouton avec aria-pressed, icône soleil/lune.\n\n*Acceptance Criteria*:\n\n\n\n* Bouton accessible avec clavier\n* Icône change selon le thème\n* Appelle setTheme au clic\n* Test e2e Playwright (clic = bascule)\n",
+"jiraId": "10006"
+},
+{
+"jiraTitle": "Dark Mode Toggle (Next.js + Tailwind)",
+"jiraDescription": "Implémenter un toggle Dark/Light dans le projet Next.js App Router. Par défaut, suivre les préférences système (prefers-color-scheme). Sur clic, appliquer immédiatement le thème, le persister dans localStorage et refléter l’état par une classe dark sur <html>. Garantir accessibilité, absence de flash (FOUC), et couverture minimale de tests.\n\n*Labels*: ui, nextjs, tailwind, theme\n\n*Components*: WebApp",
+"jiraId": "10004"
+},
+{
+"jiraTitle": "Atlassian Intelligence: How to work smarter with AI 🤖",
+"jiraDescription": "[https://www.loom.com/embed/7fa7364ac5814377bf339d2ce31ae2a5?sid=4e385c77-5ea4-4c1d-adda-ebc8b3b3c698|https://www.loom.com/embed/7fa7364ac5814377bf339d2ce31ae2a5?sid=4e385c77-5ea4-4c1d-adda-ebc8b3b3c698|smart-embed]\n\nIn this video, we’ll show you how to use Atlassian Intelligence in Jira to identify risks, automate work, and keep projects on track. See how AI can help you remove blockers before they slow you down and tickets with clear descriptions and acceptance criteria.\n\n*Resources:*\n\n\n* [Atlassian Intelligence overview|https://support.atlassian.com/organization-administration/docs/get-started-with-atlassian-intelligence-guide/]\n* [Use AI to write or create content|https://support.atlassian.com/jira-software-cloud/docs/use-atlassian-intelligence-to-help-write-or-edit-content/]\n* [Use AI to build better search queries|https://support.atlassian.com/jira-software-cloud/docs/use-atlassian-intelligence-to-search-for-issues/]\n* [How AI can create better automations|https://support.atlassian.com/cloud-automation/docs/use-atlassian-intelligence-with-jira-automation/]",
+"jiraId": "10002"
+},
+{
+"jiraTitle": "Plans: How to use detailed roadmaps to plan out your work 📍",
+"jiraDescription": "[https://www.loom.com/embed/88f966bbfc434507b26c397ab0923f3e?sid=3db973df-3c55-4045-a363-12053db42c32|https://www.loom.com/embed/88f966bbfc434507b26c397ab0923f3e?sid=3db973df-3c55-4045-a363-12053db42c32|smart-embed]\n\nIn this video, we’ll show you how to use Plans to plan your work, track dependencies, and keep teams aligned. Learn how to build roadmaps into your team’s rituals and manage work so you always deliver on time.\n\n*Resources:*\n\n\n* [Plans overview|https://www.atlassian.com/software/jira/guides/advanced-roadmaps/overview]\n* [Getting started with Plans|https://support.atlassian.com/jira-software-cloud/docs/get-started-with-advanced-roadmaps/]\n* [More video tutorials on how to create a Plan|https://www.atlassian.com/software/jira/guides/advanced-roadmaps/tutorials]",
+"jiraId": "10001"
+},
+{
+"jiraTitle": "Security & permissions: How to control who can edit or or manage projects 🚧",
+"jiraDescription": "[https://www.loom.com/embed/b387523478a3417da222bc69403db9c0?sid=9c5cd990-e88a-41ca-b1c7-4f5fbe8ceb31|https://www.loom.com/embed/b387523478a3417da222bc69403db9c0?sid=9c5cd990-e88a-41ca-b1c7-4f5fbe8ceb31|smart-embed]\n\nIn this video, we’ll show you how to control who can create, edit, or change project settings in Jira. Learn how to customize permissions so the right people have the right access, so your projects are secure and organized.\n\n*Resources:*\n\n\n* [Permissions overview|https://www.atlassian.com/software/jira/guides/permissions/overview]\n* [How to change permissions|https://www.atlassian.com/software/jira/guides/permissions/tutorials]\n* [Manage project permissions|https://support.atlassian.com/jira-cloud-administration/docs/manage-project-permissions/]",
+"jiraId": "10000"
+}
+]

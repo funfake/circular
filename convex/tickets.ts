@@ -62,6 +62,7 @@ export const upsertTickets = internalMutation({
   ): Promise<{ added: number; updated: number; total: number }> => {
     let added = 0;
     let updated = 0;
+
     for (const t of tickets) {
       const existing = await ctx.db
         .query("tickets")
@@ -71,14 +72,22 @@ export const upsertTickets = internalMutation({
         .unique();
 
       if (!existing) {
-        await ctx.db.insert("tickets", {
+        const ticketId = await ctx.db.insert("tickets", {
           projectId,
           jiraTitle: t.jiraTitle,
           jiraDescription: t.jiraDescription,
           jiraId: t.jiraId,
           rejected: undefined,
+          rejectionReason: undefined,
         });
         added += 1;
+
+        // Schedule assessment for this individual ticket
+        await ctx.scheduler.runAfter(0, internal.assessment.assessTicket, {
+          ticketId,
+          jiraTitle: t.jiraTitle,
+          jiraDescription: t.jiraDescription,
+        });
         continue;
       }
 
@@ -90,8 +99,16 @@ export const upsertTickets = internalMutation({
           jiraTitle: t.jiraTitle,
           jiraDescription: t.jiraDescription,
           rejected: undefined,
+          rejectionReason: undefined,
         });
         updated += 1;
+
+        // Schedule assessment for this individual ticket
+        await ctx.scheduler.runAfter(0, internal.assessment.assessTicket, {
+          ticketId: existing._id,
+          jiraTitle: t.jiraTitle,
+          jiraDescription: t.jiraDescription,
+        });
       }
     }
 
@@ -165,7 +182,13 @@ export const refreshProjectTickets = action({
       tickets: parsed,
     });
 
-    return result;
+    // Assessments are now scheduled automatically in upsertTickets
+
+    return {
+      added: result.added,
+      updated: result.updated,
+      total: result.total,
+    };
   },
 });
 
@@ -221,6 +244,9 @@ export const syncAllProjectsDaily = internalAction({
         projectId: p._id as Id<"projects">,
         tickets: parsed,
       });
+
+      // Assessments are now scheduled automatically in upsertTickets
+
       totalAdded += res.added;
       totalUpdated += res.updated;
       totalSeen += res.total;
