@@ -344,3 +344,62 @@ export const listProjectJobs = query({
     return enrichedJobs;
   },
 });
+
+// Public mutation to update job details
+export const updateJob = mutation({
+  args: {
+    jobId: v.id("jobs"),
+    title: v.string(),
+    tasks: v.string(),
+  },
+  handler: async (ctx, { jobId, title, tasks }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+
+    // Get the job to verify project membership
+    const job = await ctx.db.get(jobId);
+    if (!job) throw new Error("Job not found");
+
+    const userId = identity.subject;
+    const membership = await ctx.db
+      .query("members")
+      .withIndex("by_project_member", (q) =>
+        q.eq("projectId", job.projectId).eq("userId", userId)
+      )
+      .unique();
+    if (!membership) throw new Error("Forbidden");
+
+    // Update the job
+    await ctx.db.patch(jobId, {
+      title,
+      tasks,
+    });
+
+    return { success: true };
+  },
+});
+
+// Public query to get a single job
+export const getJob = query({
+  args: { jobId: v.id("jobs") },
+  handler: async (ctx, { jobId }): Promise<Doc<"jobs"> | null> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+
+    // Get the job
+    const job = await ctx.db.get(jobId);
+    if (!job) return null;
+
+    // Verify project membership
+    const userId = identity.subject;
+    const membership = await ctx.db
+      .query("members")
+      .withIndex("by_project_member", (q) =>
+        q.eq("projectId", job.projectId).eq("userId", userId)
+      )
+      .unique();
+    if (!membership) throw new Error("Forbidden");
+
+    return job;
+  },
+});
