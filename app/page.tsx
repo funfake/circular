@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import PendingInvites from "@/components/PendingInvites";
 import UserProjects from "@/components/UserProjects";
 import CreateProjectDialog from "@/components/CreateProjectDialog";
+import BlackBoxTestPanel from "@/components/BlackBoxTestPanel";
 
 export default function Home() {
   return (
@@ -145,6 +146,9 @@ function AuthenticatedContent() {
           </div>
         </CardContent>
       </Card>
+
+      {/* BlackBox AI Testing Section */}
+      <BlackBoxTestPanel />
     </div>
   );
 }
