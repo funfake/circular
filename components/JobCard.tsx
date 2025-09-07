@@ -1,10 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { Doc } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Clock, GitPullRequest } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2, Clock, GitPullRequest, Edit } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PushToCodeButton } from "@/components/PushToCodeButton";
+import { EditJobDrawer } from "@/components/EditJobDrawer";
 
 type JobCardProps = {
   job: Doc<"jobs">;
@@ -13,6 +17,7 @@ type JobCardProps = {
 };
 
 export function JobCard({ job, ticket, onClick }: JobCardProps) {
+  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   // Determine job status
   const getJobStatus = () => {
     if (job.finishedAt) {
@@ -37,7 +42,7 @@ export function JobCard({ job, ticket, onClick }: JobCardProps) {
       };
     }
     return {
-      label: "Pending Review",
+      label: "Generating",
       icon: Clock,
       className: "bg-gray-500 text-white",
     };
@@ -74,68 +79,99 @@ export function JobCard({ job, ticket, onClick }: JobCardProps) {
 
   const { taskItems, criteriaItems } = formatTasks(job.tasks);
 
+  const handleCardClick = () => {
+    if (onClick) {
+      onClick();
+    }
+  };
+
+  const handleEditClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation(); // Prevent card click event
+    setIsEditDrawerOpen(true);
+  };
+
   return (
-    <Card
-      className={cn(
-        "transition-all hover:shadow-md gap-2",
-        onClick && "cursor-pointer hover:border-primary"
-      )}
-      onClick={onClick}
-    >
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <CardTitle className="text-base">{job.title}</CardTitle>
-          <Badge className={cn("flex items-center gap-1", status.className)}>
-            <StatusIcon className="h-3 w-3" />
-            {status.label}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {taskItems.length > 0 && (
-          <div>
-            <p className="text-sm font-medium mb-1">Implementation Steps:</p>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              {taskItems.map((task, idx) => (
-                <li key={idx} className="flex items-start">
-                  <span className="mr-2">•</span>
-                  <span className="flex-1">{task}</span>
-                </li>
-              ))}
-              {/* {taskItems.length > 3 && (
+    <>
+      <Card
+        className={cn(
+          "transition-all hover:shadow-md gap-2",
+          onClick && "cursor-pointer hover:border-primary"
+        )}
+        onClick={handleCardClick}
+      >
+        <CardHeader>
+          <div className="flex items-start justify-between gap-3">
+            <CardTitle className="text-base">{job.title}</CardTitle>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleEditClick}
+                className="h-8"
+              >
+                <Edit className="h-4 w-4" />
+                Edit
+              </Button>
+              <PushToCodeButton
+                jobId={job._id}
+                prId={job.prId}
+                finishedAt={job.finishedAt}
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {taskItems.length > 0 && (
+            <div>
+              <p className="text-sm font-medium mb-1">Implementation Steps:</p>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                {taskItems.map((task, idx) => (
+                  <li key={idx} className="flex items-start">
+                    <span className="mr-2">•</span>
+                    <span className="flex-1">{task}</span>
+                  </li>
+                ))}
+                {/* {taskItems.length > 3 && (
                 <li className="text-xs italic">
                   +{taskItems.length - 3} more tasks...
                 </li>
               )} */}
-            </ul>
-          </div>
-        )}
+              </ul>
+            </div>
+          )}
 
-        {criteriaItems.length > 0 && (
-          <div>
-            <p className="text-sm font-medium mb-1">Acceptance Criteria:</p>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              {criteriaItems.map((criteria, idx) => (
-                <li key={idx} className="flex items-start">
-                  <span className="mr-2">✓</span>
-                  <span className="flex-1">{criteria}</span>
-                </li>
-              ))}
-              {/* {criteriaItems.length > 2 && (
+          {criteriaItems.length > 0 && (
+            <div>
+              <p className="text-sm font-medium mb-1">Acceptance Criteria:</p>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                {criteriaItems.map((criteria, idx) => (
+                  <li key={idx} className="flex items-start">
+                    <span className="mr-2">✓</span>
+                    <span className="flex-1">{criteria}</span>
+                  </li>
+                ))}
+                {/* {criteriaItems.length > 2 && (
                 <li className="text-xs italic">
                   +{criteriaItems.length - 2} more criteria...
                 </li>
               )} */}
-            </ul>
-          </div>
-        )}
+              </ul>
+            </div>
+          )}
 
-        {job.prId && (
-          <div className="pt-2 border-t">
-            <p className="text-xs text-muted-foreground">PR: #{job.prId}</p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          {job.prId && (
+            <div className="pt-2 border-t">
+              <p className="text-xs text-muted-foreground">PR: #{job.prId}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <EditJobDrawer
+        job={job}
+        open={isEditDrawerOpen}
+        onOpenChange={setIsEditDrawerOpen}
+      />
+    </>
   );
 }

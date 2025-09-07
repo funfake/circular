@@ -27,7 +27,9 @@ export function TicketsList({ projectId }: TicketsListProps) {
           <TicketCard key={t._id} ticket={t} />
         ))}
         {tickets && tickets.length === 0 && (
-          <div className="text-sm text-muted-foreground">No tickets yet.</div>
+          <div className="text-sm text-muted-foreground col-span-full">
+            No tickets yet.
+          </div>
         )}
       </div>
     </div>
