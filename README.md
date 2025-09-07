@@ -96,13 +96,9 @@ git clone https://github.com/funfake/circular.git
 cd circular
 
 # 2. Install dependencies
-npm install
-# or
 yarn install
 
 # 3. Run the development server
-npm run dev
-# or
 yarn dev
 
 # 4. Open in browser
