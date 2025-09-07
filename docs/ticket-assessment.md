@@ -11,7 +11,7 @@ The ticket assessment feature automatically evaluates Jira tickets for completen
 2. **AI Assessment**: The system sends each ticket's details to BlackBox AI's Claude Sonnet 4 model with examples of complete and incomplete tickets. Each ticket is assessed independently.
 
 3. **Status Assignment**: Based on the assessment, tickets are marked as:
-   - **Pending Review** (gray badge): Not yet assessed
+   - **Generating** (gray badge): Not yet assessed
    - **Rejected** (red badge): Lacks sufficient detail or clarity
    - **Approved** (green badge): Contains enough information to proceed
 

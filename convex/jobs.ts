@@ -1,4 +1,9 @@
-import { internalAction, internalMutation, query } from "./_generated/server";
+import {
+  internalAction,
+  internalMutation,
+  mutation,
+  query,
+} from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
@@ -266,6 +271,40 @@ export const listTicketJobs = query({
       .collect();
 
     return jobs;
+  },
+});
+
+// Public mutation to update job status (for Push to Code functionality)
+export const updateJobStatus = mutation({
+  args: {
+    jobId: v.id("jobs"),
+    prId: v.string(),
+    finishedAt: v.number(),
+  },
+  handler: async (ctx, { jobId, prId, finishedAt }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+
+    // Get the job to verify project membership
+    const job = await ctx.db.get(jobId);
+    if (!job) throw new Error("Job not found");
+
+    const userId = identity.subject;
+    const membership = await ctx.db
+      .query("members")
+      .withIndex("by_project_member", (q) =>
+        q.eq("projectId", job.projectId).eq("userId", userId)
+      )
+      .unique();
+    if (!membership) throw new Error("Forbidden");
+
+    // Update the job with PR ID and finished timestamp
+    await ctx.db.patch(jobId, {
+      prId,
+      finishedAt,
+    });
+
+    return { success: true };
   },
 });
 

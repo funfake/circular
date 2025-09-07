@@ -33,7 +33,7 @@ export function JobsList({ ticketId, onJobClick }: JobsListProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="grid grid-cols-1 gap-4">
       {jobs.map((job) => (
         <JobCard
           key={job._id}

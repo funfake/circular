@@ -58,7 +58,7 @@ export function TicketCard({
     if (ticket.rejected === undefined) {
       return {
         variant: "secondary" as const,
-        text: "Pending Review",
+        text: "Generating",
         className: "bg-gray-500 text-white border-gray-500 hover:bg-gray-600",
         isLoading: true, // Show loader since AI is working in the background
       };

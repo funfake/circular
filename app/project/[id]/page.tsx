@@ -47,7 +47,7 @@ function Content() {
         <h1 className="text-2xl font-semibold">{project.name}</h1>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left Column - Tickets */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -56,7 +56,7 @@ function Content() {
           </div>
 
           <ScrollArea className="h-[calc(100vh-200px)]">
-            <div className="space-y-4 pr-4">
+            <div className="grid grid-cols-1 gap-4 pr-4">
               {tickets?.map((ticket) => (
                 <TicketCard
                   key={ticket._id}
@@ -72,7 +72,7 @@ function Content() {
                 />
               ))}
               {tickets && tickets.length === 0 && (
-                <div className="text-sm text-muted-foreground">
+                <div className="text-sm text-muted-foreground col-span-full">
                   No tickets yet. Click &quot;Sync with Jira&quot; to fetch
                   tickets.
                 </div>

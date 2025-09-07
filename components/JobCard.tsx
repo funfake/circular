@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Clock, GitPullRequest } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PushToCodeButton } from "@/components/PushToCodeButton";
 
 type JobCardProps = {
   job: Doc<"jobs">;
@@ -37,7 +38,7 @@ export function JobCard({ job, ticket, onClick }: JobCardProps) {
       };
     }
     return {
-      label: "Pending Review",
+      label: "Generating",
       icon: Clock,
       className: "bg-gray-500 text-white",
     };
@@ -85,10 +86,11 @@ export function JobCard({ job, ticket, onClick }: JobCardProps) {
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <CardTitle className="text-base">{job.title}</CardTitle>
-          <Badge className={cn("flex items-center gap-1", status.className)}>
-            <StatusIcon className="h-3 w-3" />
-            {status.label}
-          </Badge>
+          <PushToCodeButton
+            jobId={job._id}
+            prId={job.prId}
+            finishedAt={job.finishedAt}
+          />
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
