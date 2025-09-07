@@ -150,11 +150,16 @@ export const refreshProjectTickets = action({
     ctx,
     { projectId }
   ): Promise<{ added: number; updated: number; total: number }> => {
-    // Ensure caller is a member of the project
-    const project = await ctx.runQuery(api.project.getProjectIfMember, {
+    // Check if user is authenticated and is a member of the project
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+    
+    const userId = identity.subject;
+    const membership = await ctx.runQuery(internal.tickets.checkProjectMembership, {
       projectId,
+      userId,
     });
-    if (project === null) {
+    if (!membership) {
       throw new Error("Forbidden");
     }
 
@@ -184,6 +189,20 @@ export const refreshProjectTickets = action({
       updated: result.updated,
       total: result.total,
     };
+  },
+});
+
+// Internal query to check project membership
+export const checkProjectMembership = internalQuery({
+  args: { projectId: v.id("projects"), userId: v.string() },
+  handler: async (ctx, { projectId, userId }) => {
+    const membership = await ctx.db
+      .query("members")
+      .withIndex("by_project_member", (q) =>
+        q.eq("projectId", projectId).eq("userId", userId)
+      )
+      .unique();
+    return !!membership;
   },
 });
 
