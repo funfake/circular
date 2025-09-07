@@ -1,173 +1,240 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
-import { api } from "./_generated/api";
+import {
+  action,
+  internalAction,
+  internalMutation,
+  internalQuery,
+  query,
+} from "./_generated/server";
+import { Doc, Id } from "./_generated/dataModel";
+import { internal, api } from "./_generated/api";
 
-// Create a new ticket
-export const createTicket = mutation({
+type TicketFields = Pick<
+  Doc<"tickets">,
+  "jiraTitle" | "jiraDescription" | "jiraId"
+>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function parseJiraTickets(raw: unknown): TicketFields[] {
+  if (!Array.isArray(raw)) return [];
+  const result: TicketFields[] = [];
+  for (const item of raw) {
+    if (!isRecord(item)) continue;
+    const jiraId = String(item.jiraId ?? "");
+    if (!jiraId) continue;
+    const jiraTitle = String(item.jiraTitle ?? "");
+    const jiraDescription = String(item.jiraDescription ?? "");
+    result.push({ jiraId, jiraTitle, jiraDescription });
+  }
+  return result;
+}
+
+// Internal query: read Jira source URL for a project without auth checks (for cron/actions)
+export const getJiraSourceUrlInternal = internalQuery({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    const creds = await ctx.db
+      .query("credentials")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .unique();
+    return creds?.jiraSourceUrl ?? "";
+  },
+});
+
+// Internal mutation: upsert tickets for a project
+export const upsertTickets = internalMutation({
   args: {
-    userId: v.id("users"),
-    repositoryId: v.id("repositories"),
-    title: v.string(),
-    description: v.string(),
-    priority: v.optional(v.union(
-      v.literal("low"),
-      v.literal("medium"),
-      v.literal("high"),
-      v.literal("critical")
-    )),
-  },
-  handler: async (ctx, args) => {
-    const ticketId = await ctx.db.insert("tickets", {
-      userId: args.userId,
-      repositoryId: args.repositoryId,
-      title: args.title,
-      description: args.description,
-      priority: args.priority || "medium",
-      status: "pending",
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    return await ctx.db.get(ticketId);
-  },
-});
-
-// Get ticket by ID
-export const getTicket = query({
-  args: { ticketId: v.id("tickets") },
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.ticketId);
-  },
-});
-
-// Get all tickets for a user
-export const getUserTickets = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("tickets")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .order("desc")
-      .collect();
-  },
-});
-
-// Get tickets by repository
-export const getRepositoryTickets = query({
-  args: { repositoryId: v.id("repositories") },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("tickets")
-      .withIndex("by_repository", (q) => q.eq("repositoryId", args.repositoryId))
-      .order("desc")
-      .collect();
-  },
-});
-
-// Get tickets by status
-export const getTicketsByStatus = query({
-  args: {
-    status: v.union(
-      v.literal("pending"),
-      v.literal("processing"),
-      v.literal("completed"),
-      v.literal("failed")
+    projectId: v.id("projects"),
+    tickets: v.array(
+      v.object({
+        jiraTitle: v.string(),
+        jiraDescription: v.string(),
+        jiraId: v.string(),
+      })
     ),
   },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("tickets")
-      .withIndex("by_status", (q) => q.eq("status", args.status))
-      .collect();
+  handler: async (
+    ctx,
+    { projectId, tickets }
+  ): Promise<{ added: number; updated: number; total: number }> => {
+    let added = 0;
+    let updated = 0;
+    for (const t of tickets) {
+      const existing = await ctx.db
+        .query("tickets")
+        .withIndex("by_project_jiraId", (q) =>
+          q.eq("projectId", projectId).eq("jiraId", t.jiraId)
+        )
+        .unique();
+
+      if (!existing) {
+        await ctx.db.insert("tickets", {
+          projectId,
+          jiraTitle: t.jiraTitle,
+          jiraDescription: t.jiraDescription,
+          jiraId: t.jiraId,
+          rejected: undefined,
+        });
+        added += 1;
+        continue;
+      }
+
+      if (
+        existing.jiraTitle !== t.jiraTitle ||
+        existing.jiraDescription !== t.jiraDescription
+      ) {
+        await ctx.db.patch(existing._id, {
+          jiraTitle: t.jiraTitle,
+          jiraDescription: t.jiraDescription,
+          rejected: undefined,
+        });
+        updated += 1;
+      }
+    }
+
+    return { added, updated, total: tickets.length } as const;
   },
 });
 
-// Get pending tickets
-export const getPendingTickets = query({
+// Public query: list project tickets ordered by jiraId descending (latest first)
+export const listProjectTickets = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }): Promise<Array<Doc<"tickets">>> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+    const userId = identity.subject;
+    const membership = await ctx.db
+      .query("members")
+      .withIndex("by_project_member", (q) =>
+        q.eq("projectId", projectId).eq("userId", userId)
+      )
+      .unique();
+    if (!membership) throw new Error("Forbidden");
+
+    // Scope by project via index, then sort by numeric jiraId desc for correctness
+    const items = await ctx.db
+      .query("tickets")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .collect();
+
+    return items.toSorted(
+      (a, b) => Number(b.jiraId ?? 0) - Number(a.jiraId ?? 0)
+    );
+  },
+});
+
+// Public action: fetch from project's Jira source URL and upsert
+export const refreshProjectTickets = action({
+  args: { projectId: v.id("projects") },
+  handler: async (
+    ctx,
+    { projectId }
+  ): Promise<{ added: number; updated: number; total: number }> => {
+    // Check if user is authenticated and is a member of the project
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+    
+    const userId = identity.subject;
+    const membership = await ctx.runQuery(internal.tickets.checkProjectMembership, {
+      projectId,
+      userId,
+    });
+    if (!membership) {
+      throw new Error("Forbidden");
+    }
+
+    const url = await ctx.runQuery(internal.tickets.getJiraSourceUrlInternal, {
+      projectId,
+    });
+    if (!url) return { added: 0, updated: 0, total: 0 } as const;
+
+    const response = await fetch(url, { method: "GET" });
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch tickets: ${response.status} ${response.statusText}`
+      );
+    }
+    const raw = (await response.json()) as unknown;
+    const parsed = parseJiraTickets(raw);
+
+    const result = await ctx.runMutation(internal.tickets.upsertTickets, {
+      projectId,
+      tickets: parsed,
+    });
+
+    return result;
+  },
+});
+
+// Internal query to check project membership
+export const checkProjectMembership = internalQuery({
+  args: { projectId: v.id("projects"), userId: v.string() },
+  handler: async (ctx, { projectId, userId }) => {
+    const membership = await ctx.db
+      .query("members")
+      .withIndex("by_project_member", (q) =>
+        q.eq("projectId", projectId).eq("userId", userId)
+      )
+      .unique();
+    return !!membership;
+  },
+});
+
+// Internal action used by cron: sync all projects daily
+export const syncAllProjectsDaily = internalAction({
+  args: {},
+  handler: async (
+    ctx
+  ): Promise<{
+    totalAdded: number;
+    totalUpdated: number;
+    totalSeen: number;
+  }> => {
+    // List all projects
+    const projects = await ctx.runQuery(
+      internal.tickets.listAllProjectsInternal,
+      {}
+    );
+
+    let totalAdded = 0;
+    let totalUpdated = 0;
+    let totalSeen = 0;
+
+    for (const p of projects) {
+      const url = await ctx.runQuery(
+        internal.tickets.getJiraSourceUrlInternal,
+        {
+          projectId: p._id as Id<"projects">,
+        }
+      );
+      if (!url) continue;
+
+      const response = await fetch(url, { method: "GET" });
+      if (!response.ok) continue;
+      const raw = (await response.json()) as unknown;
+      const parsed = parseJiraTickets(raw);
+
+      const res = await ctx.runMutation(internal.tickets.upsertTickets, {
+        projectId: p._id as Id<"projects">,
+        tickets: parsed,
+      });
+      totalAdded += res.added;
+      totalUpdated += res.updated;
+      totalSeen += res.total;
+    }
+
+    return { totalAdded, totalUpdated, totalSeen } as const;
+  },
+});
+
+// Internal query to list projects (for cron)
+export const listAllProjectsInternal = internalQuery({
+  args: {},
   handler: async (ctx) => {
-    return await ctx.db
-      .query("tickets")
-      .withIndex("by_status", (q) => q.eq("status", "pending"))
-      .collect();
-  },
-});
-
-// Update ticket status
-export const updateTicketStatus = mutation({
-  args: {
-    ticketId: v.id("tickets"),
-    status: v.union(
-      v.literal("pending"),
-      v.literal("processing"),
-      v.literal("completed"),
-      v.literal("failed")
-    ),
-  },
-  handler: async (ctx, args) => {
-    const updates: any = {
-      status: args.status,
-      updatedAt: Date.now(),
-    };
-
-    if (args.status === "processing") {
-      updates.assignedAt = Date.now();
-    } else if (args.status === "completed" || args.status === "failed") {
-      updates.completedAt = Date.now();
-    }
-
-    await ctx.db.patch(args.ticketId, updates);
-    return await ctx.db.get(args.ticketId);
-  },
-});
-
-// Assign ticket for development
-export const assignTicketForDevelopment = mutation({
-  args: {
-    ticketId: v.id("tickets"),
-  },
-  handler: async (ctx, args) => {
-    const ticket = await ctx.db.get(args.ticketId);
-    if (!ticket) {
-      throw new Error("Ticket not found");
-    }
-
-    // Update ticket status to processing
-    await ctx.db.patch(args.ticketId, {
-      status: "processing",
-      assignedAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    // Create development task
-    const taskId = await ctx.db.insert("developmentTasks", {
-      ticketId: args.ticketId,
-      repositoryId: ticket.repositoryId,
-      userId: ticket.userId,
-      status: "queued",
-      startedAt: Date.now(),
-    });
-
-    return await ctx.db.get(taskId);
-  },
-});
-
-// Update ticket priority
-export const updateTicketPriority = mutation({
-  args: {
-    ticketId: v.id("tickets"),
-    priority: v.union(
-      v.literal("low"),
-      v.literal("medium"),
-      v.literal("high"),
-      v.literal("critical")
-    ),
-  },
-  handler: async (ctx, args) => {
-    await ctx.db.patch(args.ticketId, {
-      priority: args.priority,
-      updatedAt: Date.now(),
-    });
-
-    return await ctx.db.get(args.ticketId);
+    const projects = await ctx.db.query("projects").collect();
+    return projects.map((p) => ({ _id: p._id }));
   },
 });

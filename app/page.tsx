@@ -5,6 +5,9 @@ import { Container } from "@/components/Container";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import PendingInvites from "@/components/PendingInvites";
+import UserProjects from "@/components/UserProjects";
+import CreateProjectDialog from "@/components/CreateProjectDialog";
 
 export default function Home() {
   return (
@@ -38,6 +41,14 @@ export default function Home() {
 function Content() {
   return (
     <div className="space-y-6">
+      {/* Project Management Section */}
+      <div className="grid grid-cols-1 gap-6 max-w-md mx-auto">
+        <CreateProjectDialog />
+        <PendingInvites />
+        <UserProjects />
+      </div>
+
+      {/* Platform Features Section */}
       <Card>
         <CardHeader>
           <CardTitle>Platform Features</CardTitle>
@@ -106,11 +117,6 @@ function Content() {
           <Link href="/blackbox-demo">
             <Button>
               BlackBox AI Demo
-            </Button>
-          </Link>
-          <Link href="/settings">
-            <Button variant="outline">
-              Settings
             </Button>
           </Link>
         </CardContent>

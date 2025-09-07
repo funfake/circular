@@ -44,10 +44,18 @@ function Navbar() {
     exact ? pathname === href : pathname?.startsWith(href);
   const getLinkClass = (href: string, exact = false) =>
     `${baseLinkClasses} ${isActive(href, exact) ? activeClasses : inactiveClasses}`;
-  const mainLinks = [
-    { href: "/", label: "Home", exact: true },
-    { href: "/settings", label: "Settings" },
-  ];
+  // If we're on a project page, add a Settings link scoped to that project
+  const projectMatch = pathname?.match(/^\/project\/([^/]+)/);
+  const projectId = projectMatch?.[1];
+  const mainLinks = projectId
+    ? [
+        {
+          href: `/project/${projectId}`,
+          label: "Project Dashboard",
+          exact: true,
+        },
+      ]
+    : [{ href: "/", label: "Home", exact: true }];
   const unauthLinks = [
     {
       href: "/sign-in",
@@ -69,7 +77,7 @@ function Navbar() {
         {/* Left: Brand */}
         <div className="flex items-center">
           <Link href="/" className="font-semibold whitespace-nowrap">
-            Starter kit (WorkOS)
+            Circular.ai
           </Link>
         </div>
 
@@ -85,6 +93,17 @@ function Navbar() {
               {label}
             </Link>
           ))}
+          {projectId ? (
+            <Link
+              href={`/project/${projectId}/settings`}
+              aria-current={
+                isActive(`/project/${projectId}/settings`) ? "page" : undefined
+              }
+              className={getLinkClass(`/project/${projectId}/settings`)}
+            >
+              Settings
+            </Link>
+          ) : null}
         </nav>
 
         {/* Right: Auth */}
